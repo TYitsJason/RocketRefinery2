@@ -13,5 +13,6 @@ UCLASS()
 class ROCKETREFINERY2_API ARocketGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
-	
+
+	virtual void StartPlay() override;
 };
