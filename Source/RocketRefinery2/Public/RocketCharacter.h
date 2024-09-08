@@ -4,8 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/SpringArmComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Camera/CameraComponent.h"
+
+#include "GravityGun.h"
+#include "PhysicsEngine/PhysicsHandleComponent.h"
+
 #include "RocketCharacter.generated.h"
 
 UCLASS()
@@ -20,6 +25,10 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+private:
+	void UpdateDebugMessage();
+	FString CurrentDebugMessage;
 
 public:	
 	// Called every frame
@@ -37,18 +46,24 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UCameraComponent* CameraComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class USpringArmComponent* CameraBoom;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float MaxMovementPower;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float MovementPowerIncrement;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float DefaultUpForce;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
 	FVector MovementPower;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float RotationSpeed;
-	
+
 	UFUNCTION()
 	void MoveForward(float value);
 
@@ -65,5 +80,15 @@ public:
 	void Turn(float Value);
 
 	UFUNCTION()
-	void LockRotation();
+	void LookUp(float Value);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gravity Gun")
+	UGravityGun* GravityGun;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPhysicsHandleComponent* PhysicsHandle;
+
+	void OnGravityGunGrab();
+	void OnGravityGunRelease();
+	void OnGravityGunLaunch();
 };
