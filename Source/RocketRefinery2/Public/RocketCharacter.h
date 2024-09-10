@@ -29,6 +29,8 @@ protected:
 private:
 	void UpdateDebugMessage();
 	FString CurrentDebugMessage;
+	float MaxHealth;
+	float CurrentHealth;
 
 public:	
 	// Called every frame
@@ -46,9 +48,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UCameraComponent* CameraComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class USpringArmComponent* CameraBoom;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float MaxMovementPower;
 
@@ -63,6 +62,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float RotationSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float DamageVelocityThreshold;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float DamageScalingFactor;
 
 	UFUNCTION()
 	void MoveForward(float value);
@@ -91,4 +96,20 @@ public:
 	void OnGravityGunGrab();
 	void OnGravityGunRelease();
 	void OnGravityGunLaunch();
+
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	void TakeDamage(float DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	float GetCurrentHealth() const { return CurrentHealth; }
+
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	float GetMaxHealth() const { return MaxHealth; }
+
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	void SetMaxHealth(float NewMaxHealth);
+
+	// Collision event handler
+	UFUNCTION()
+	void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 };

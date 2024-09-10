@@ -141,7 +141,9 @@ void UGravityGun::Launch()
 			GrabbedComponent->SetAngularDamping(OriginalAngularDamping);
 			GrabbedComponent->SetEnableGravity(OriginalGravityEnabled);
 
-			FVector LaunchDirection = GetOwner()->GetActorForwardVector();
+			ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+			UCameraComponent* CameraComp = OwnerCharacter->FindComponentByClass<UCameraComponent>();
+			FVector LaunchDirection = CameraComp->GetForwardVector();
 			GrabbedComponent->AddImpulse(LaunchDirection * LaunchForce);
 
 			// Debug: Print info about launched object

@@ -21,12 +21,8 @@ ARocketCharacter::ARocketCharacter()
 	CollisionComponent->SetMassOverrideInKg(NAME_None, 1.0f);
 	CollisionComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
 
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(CollisionComponent);
-	CameraBoom->TargetArmLength = 300.0f;
-
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
-	CameraComponent->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	CameraComponent->SetupAttachment(CollisionComponent);
 	CameraComponent->bUsePawnControlRotation = false;
 
 	RocketMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RocketMesh"));
@@ -41,6 +37,13 @@ ARocketCharacter::ARocketCharacter()
 	MaxMovementPower = 1000.0f;
 	MovementPowerIncrement = 10.0f;
 	RotationSpeed = 45.0f;
+	MaxHealth = 100.0f;
+	CurrentHealth = MaxHealth;
+	DamageVelocityThreshold = 500.0f; 
+	DamageScalingFactor = 0.01f;
+
+	// Set up collision notifications
+	CollisionComponent->SetNotifyRigidBodyCollision(true);
 }
 
 void ARocketCharacter::UpdateDebugMessage()
@@ -74,7 +77,14 @@ void ARocketCharacter::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("GravityGun or PhysicsHandle is null in RocketCharacter"));
 	}
+	
+	if (!CollisionComponent->OnComponentHit.IsAlreadyBound(this, &ARocketCharacter::OnHit))
+	{
+		CollisionComponent->OnComponentHit.AddDynamic(this, &ARocketCharacter::OnHit);
+	}
+
 	MovementPower = FVector(0, 0, DefaultUpForce);
+	CurrentHealth = MaxHealth;
 }
 
 // Called every frame
@@ -91,8 +101,6 @@ void ARocketCharacter::Tick(float DeltaTime)
 
 	FVector NewCameraLocation = GetActorLocation();
 	CameraComponent->SetWorldLocation(NewCameraLocation);
-
-	SetActorRotation(FRotator(0.0f, CurrentCameraRotation.Yaw, 0.0f));
 
 	// Move the rocket based on the current movement power
 	CollisionComponent->AddForce(Movement);
@@ -114,11 +122,11 @@ void ARocketCharacter::Tick(float DeltaTime)
 		FString::Printf(TEXT("Current Location: X=%.2f, Y=%.2f, Z=%.2f"),
 			Location.X, Location.Y, Location.Z));
 
-	// Debug: Print out the camera's location
-	FVector CameraLocation = CameraComponent->GetComponentLocation();
+	// Debug: Print out the camera's rotation
+	FRotator CameraLocation = CameraComponent->GetRelativeRotation();
 	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Cyan,
-		FString::Printf(TEXT("Camera Location: X=%.2f, Y=%.2f, Z=%.2f"),
-			CameraLocation.X, CameraLocation.Y, CameraLocation.Z));
+		FString::Printf(TEXT("Camera Rotation: X=%.2f, Y=%.2f, Z=%.2f"),
+			CameraLocation.Pitch, CameraLocation.Yaw, CameraLocation.Roll));
 
 	// Debug: Print out the relative location of the camera to the character
 	FVector RelativeLocation = CameraComponent->GetRelativeLocation();
@@ -240,5 +248,56 @@ void ARocketCharacter::OnGravityGunLaunch()
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Red,
 			FString::Printf(TEXT("Tried: Launch, Error: No Gravity Gun Found")));
+	}
+}
+
+void ARocketCharacter::TakeDamage(float DamageAmount)
+{
+	CurrentHealth = FMath::Max(0.0f, CurrentHealth - DamageAmount);
+
+	if (CurrentHealth <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Character has died!"));
+		// TO BE IMPLEMENTED
+	}
+
+	// Log or display the current health
+	UE_LOG(LogTemp, Warning, TEXT("Current Health: %f"), CurrentHealth);
+	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, FString::Printf(TEXT("Health: %f"), CurrentHealth));
+}
+
+void ARocketCharacter::SetMaxHealth(float NewMaxHealth)
+{
+	MaxHealth = FMath::Max(0.0f, NewMaxHealth);
+	CurrentHealth = FMath::Min(CurrentHealth, MaxHealth);
+}
+
+void ARocketCharacter::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	// Log every collision, regardless of conditions
+	UE_LOG(LogTemp, Warning, TEXT("OnHit called: Hit Actor = %s"), OtherActor ? *OtherActor->GetName() : TEXT("None"));
+
+	if (OtherActor && OtherActor != this)
+	{
+		FVector Velocity = CollisionComponent->GetPhysicsLinearVelocity();
+		float ImpactSpeed = Velocity.Size();
+
+		UE_LOG(LogTemp, Warning, TEXT("Collision details - Speed: %f, Threshold: %f"), ImpactSpeed, DamageVelocityThreshold);
+
+		if (ImpactSpeed > DamageVelocityThreshold)
+		{
+			float DamageAmount = (ImpactSpeed - DamageVelocityThreshold) * DamageScalingFactor;
+			TakeDamage(DamageAmount);
+
+			UE_LOG(LogTemp, Warning, TEXT("Damage applied - Amount: %f, New Health: %f"), DamageAmount, CurrentHealth);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Impact speed below threshold, no damage applied"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Hit something, but it wasn't a valid actor or was self"));
 	}
 }
