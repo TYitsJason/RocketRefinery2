@@ -2,6 +2,8 @@
 
 
 #include "RocketCharacter.h"
+#include "RocketGameMode.h"
+#include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
 
 // Sets default values
@@ -9,6 +11,8 @@ ARocketCharacter::ARocketCharacter()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+	UE_LOG(LogTemp, Warning, TEXT("RocketCharacter constructed"));
 
 	// Create and set up components
 	CollisionComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CollisionComponent"));
@@ -39,11 +43,10 @@ ARocketCharacter::ARocketCharacter()
 	RotationSpeed = 45.0f;
 	MaxHealth = 100.0f;
 	CurrentHealth = MaxHealth;
-	DamageVelocityThreshold = 500.0f; 
-	DamageScalingFactor = 0.01f;
 
 	// Set up collision notifications
 	CollisionComponent->SetNotifyRigidBodyCollision(true);
+	CollisionComponent->OnComponentHit.AddDynamic(this, &ARocketCharacter::OnHit);
 }
 
 void ARocketCharacter::UpdateDebugMessage()
@@ -62,6 +65,8 @@ void ARocketCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	UE_LOG(LogTemp, Warning, TEXT("RocketCharacter BeginPlay called"));
+
 	if (GetRootComponent() != CollisionComponent)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("CollisionComponent is not the root component!"));
@@ -77,11 +82,6 @@ void ARocketCharacter::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("GravityGun or PhysicsHandle is null in RocketCharacter"));
 	}
-	
-	if (!CollisionComponent->OnComponentHit.IsAlreadyBound(this, &ARocketCharacter::OnHit))
-	{
-		CollisionComponent->OnComponentHit.AddDynamic(this, &ARocketCharacter::OnHit);
-	}
 
 	MovementPower = FVector(0, 0, DefaultUpForce);
 	CurrentHealth = MaxHealth;
@@ -91,6 +91,7 @@ void ARocketCharacter::BeginPlay()
 void ARocketCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
 	FVector Movement =
 		CameraComponent->GetForwardVector() * MovementPower.X +
 		CameraComponent->GetRightVector() * MovementPower.Y +
@@ -253,12 +254,21 @@ void ARocketCharacter::OnGravityGunLaunch()
 
 void ARocketCharacter::TakeDamage(float DamageAmount)
 {
+	if (CurrentHealth <= 0.0f) 
+	{
+		return;
+	}
+
 	CurrentHealth = FMath::Max(0.0f, CurrentHealth - DamageAmount);
 
 	if (CurrentHealth <= 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Character has died!"));
-		// TO BE IMPLEMENTED
+		ARocketGameMode* GameMode = Cast<ARocketGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+		if (GameMode)
+		{
+			GameMode->EndGame();
+		}
 	}
 
 	// Log or display the current health
@@ -274,9 +284,6 @@ void ARocketCharacter::SetMaxHealth(float NewMaxHealth)
 
 void ARocketCharacter::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	// Log every collision, regardless of conditions
-	UE_LOG(LogTemp, Warning, TEXT("OnHit called: Hit Actor = %s"), OtherActor ? *OtherActor->GetName() : TEXT("None"));
-
 	if (OtherActor && OtherActor != this)
 	{
 		FVector Velocity = CollisionComponent->GetPhysicsLinearVelocity();
@@ -287,6 +294,10 @@ void ARocketCharacter::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherAct
 		if (ImpactSpeed > DamageVelocityThreshold)
 		{
 			float DamageAmount = (ImpactSpeed - DamageVelocityThreshold) * DamageScalingFactor;
+			if (DamageAmount > MaxDamage) 
+			{
+				DamageAmount = MaxDamage;
+			}
 			TakeDamage(DamageAmount);
 
 			UE_LOG(LogTemp, Warning, TEXT("Damage applied - Amount: %f, New Health: %f"), DamageAmount, CurrentHealth);
@@ -300,4 +311,8 @@ void ARocketCharacter::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherAct
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Hit something, but it wasn't a valid actor or was self"));
 	}
+}
+void ARocketCharacter::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	UE_LOG(LogTemp, Warning, TEXT("OnOverlapBegin called: Overlapped Actor = %s"), OtherActor ? *OtherActor->GetName() : TEXT("None"));
 }

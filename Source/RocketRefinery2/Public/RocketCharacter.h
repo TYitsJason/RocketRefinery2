@@ -13,6 +13,8 @@
 
 #include "RocketCharacter.generated.h"
 
+class ARocketGameMode;
+
 UCLASS()
 class ROCKETREFINERY2_API ARocketCharacter : public ACharacter
 {
@@ -29,8 +31,6 @@ protected:
 private:
 	void UpdateDebugMessage();
 	FString CurrentDebugMessage;
-	float MaxHealth;
-	float CurrentHealth;
 
 public:	
 	// Called every frame
@@ -67,7 +67,16 @@ public:
 	float DamageVelocityThreshold;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float MaxDamage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
 	float DamageScalingFactor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float MaxHealth;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float CurrentHealth;
 
 	UFUNCTION()
 	void MoveForward(float value);
@@ -112,4 +121,7 @@ public:
 	// Collision event handler
 	UFUNCTION()
 	void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	UFUNCTION()
+	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 };
